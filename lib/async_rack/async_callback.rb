@@ -73,20 +73,13 @@ module AsyncRack
     end
 
     module Mixin
-      def async_callback(result)
-        @async_callback.call result
-      end
-
-      def setup_async(env)
-        return false if @async_callback
-        @async_callback = env['async.callback']
-        env['async.callback'] = method :async_callback
-        @env = env
-      end
-
       def call(env)
-        setup_async env
-        super
+        async_cb = env['async.callback']
+        env['async.callback'] = Proc.new do |result|
+          async_cb.call(result)
+        end
+
+        super(env)
       end
     end
 
@@ -97,9 +90,28 @@ module AsyncRack
     # In that case you just have to include SimpleWrapper in your async wrapper class.
     module SimpleWrapper
       include AsyncRack::AsyncCallback::Mixin
-      def async_callback(result)
-        @app = proc { result }
-        super call(@env)
+
+      def initialize(app)
+        super
+
+        async_rack_app = app
+        @app = Proc.new do |env|
+          if env['async.results'].nil?
+            async_rack_app.call(env)
+          else
+            env['async.results']
+          end
+        end
+      end
+
+      def call(env)
+        async_cb = env['async.callback']
+        env['async.callback'] = Proc.new do |results|
+          env['async.results'] = results
+          async_cb.call(super(env))
+        end
+
+        super(env)
       end
     end
   end

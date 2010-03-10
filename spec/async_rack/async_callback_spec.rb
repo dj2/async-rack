@@ -23,7 +23,7 @@ describe AsyncRack::AsyncCallback do
       @namespace::Bar.should == subclass
     end
   end
-
+=begin
   describe :SimpleWrapper do
     it "runs #call again on async callback, replacing app" do
       klass = Class.new do
@@ -43,13 +43,18 @@ describe AsyncRack::AsyncCallback do
       middleware.env["async.callback"].call(0).should == 15
     end
   end
-
+=end
   describe :Mixin do
-    it "wrapps async.callback" do
+    it "wraps async.callback" do
+      cb = proc { 'blah' }
+      env = { 'async.callback' => cb }
+
+
       @middleware = proc { |env| env['async.callback'].call [200, {'Content-Type' => 'text/plain'}, ['OK']] }
       @middleware.extend AsyncRack::AsyncCallback::Mixin
-      @middleware.should_receive(:async_callback)
-      @middleware.call "async.callback" => proc { }
+      @middleware.call(env)
+
+      env['async.callback'].should_not == cb
     end
   end
 end
